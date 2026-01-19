@@ -7,17 +7,17 @@ const config = require("./config.js");
 
 // Getting Config
 if (!config.token) {
-    console.error('Error: Bot token is required in config.js');
+    console.error('Error: Bot token is required in config.js. Please provide a valid token.');
     process.exit(1);
 }
 if (!config.channel_name) {
-    console.error('Error: Channel name is required in config.js');
+    console.error('Error: Channel name is required in config.js. Please provide the name of your YouTube channel.');
     process.exit(1);
 }
 
 const role_id = config.role_id || null;
-const keywords = config.keywords || null;
-const save_data = config.save_data || 'false';
+const keywords = config.keywords || "";
+const save_data = String(config.save_data).toLowerCase() === 'true';
 
 
 
@@ -136,20 +136,26 @@ client.on(Events.InteractionCreate, async interaction => {
             let containsChannelName = extractedTextLower.includes(channelNameLower);
 
             // Check if any of the keywords are in the extracted text
-            if (config.keywords) {
-                const keywordsArray = config.keywords.split(',').map(keyword => keyword.trim().toLowerCase());
+            if (keywords) {
+                const keywordsArray = keywords.split(',').map(keyword => keyword.trim().toLowerCase()).filter(kw => kw.length > 0);
                 containsChannelName = containsChannelName || keywordsArray.some(keyword => extractedTextLower.includes(keyword));
             }
 
             // If a match is found
             if (containsChannelName) {
                 if (role_id) {
-                    await member.roles.add(role_id);
+                    try {
+                        await member.roles.add(role_id);
+                    } catch (error) {
+                        console.error('Error adding role:', error);
+                        await interaction.followUp({ content: 'I was unable to assign the role. Please check my permissions.', ephemeral: true });
+                        return;
+                    }
                 }
                 await interaction.followUp({ content: `Thanks for subscribing to ${config.channel_name}`, ephemeral: true });
 
                 // Save user data if save_data is true
-                if (save_data === 'true') {
+                if (save_data) {
                     const userData = {
                         username: member.user.username,
                         id: member.user.id,
